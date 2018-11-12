@@ -1,0 +1,8 @@
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.csproj.AutoTestTool.exe.config
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.AccountSettingForm.resources
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.LoginForm.resources
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.MainForm.resources
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.Properties.Resources.resources
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.R9Form.resources
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.csproj.GenerateResource.Cache
+E:\Temp\R8_R6_R9自动化生产测试上位机软件\AutoTestTool_R\AutoTestTool\obj\Release\AutoTestTool.csproj.CoreCompileInputs.cache

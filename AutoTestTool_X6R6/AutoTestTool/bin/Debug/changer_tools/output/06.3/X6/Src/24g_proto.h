@@ -1,0 +1,697 @@
+#ifndef __24G_PROTO_H__
+#define __24G_PROTO_H__
+
+#include "includes.h"
+#include "ckb24_um.h"
+#include "main_handle.h"
+
+#define RETRY_24G_MAX_CNT                           3
+#define RESENT_24G_MSG_CNT                          30//20
+#define RETRY_24G_DELAY_TIME                        40//150
+
+#define SERIAL_NUM_DELAY_TIME                        2
+
+#define INNER_VER_CMD_CHECKSUM            3
+#define INNER_VER_CMD                     2
+#define INNER_CHECK_SUM                   1
+#define INNER_EE_LEN                   2
+
+#define BTRF2_4G_GUNID1         1       //枪头号1
+#define BTRF2_4G_GUNID2         2       //枪头号2
+
+#define MAC_LEN                 5
+
+#define PIECE_PKT_LEN_24G_SEND_TO_X6                50      //不要修改
+#define LEN_OF_BTRF24G_PROTO_DATA                   200
+
+
+#define RECEIVE_MAX_PKT_24G            1
+
+
+enum {
+    EVENT_OCCUR = 1,
+    EVENT_RECOVER,
+};
+
+enum {
+    SWIPE_CARD = 1,
+    SCAN_CODE,
+};
+
+enum {
+    CHIP_EMU = 0,                       //0.计量芯片
+    CHIP_FLASH,                         //1.flash
+    CHIP_E2PROM,                        //2.e2prom
+    CHIP_BLUE,                          //3.蓝牙
+};
+
+enum {
+    ONE_TIMES = 0,
+    MANY_TIMES,
+};
+
+enum{
+	CMD_CARD_AUTH_24G						= 0x01,	//鉴权请求
+	CMD_CARD_AUTH_RESULT_RETURN_24G			= 0x02,	//鉴权结果返回
+	CMD_START_CHARGER_24G					= 0x03,	//请求启动充电
+	CMD_STOP_CHARGER_24G					= 0x04,	//请求结束充电
+	CMD_CHARGER_STARTED_24G 				= 0x05,	//充电开始通知
+	CMD_CHARGER_STOPED_24G 					= 0x06,	//充电结束通知
+	CMD_HEART_BEAT_24G						= 0x07,	//心跳
+	CMD_COST_DOWN_24G						= 0x08,	//计费模板下发
+	CMD_COST_REQ_24G						= 0x09,	//请求计费模板
+	CMD_FW_UPGRADE_NOTI_24G 				= 0x0A,	//固件升级开始通知
+    CMD_FW_DOWN_LOAD_24G					= 0x0B,	//固件下发
+	CMD_FW_UPGRADE_REQ_24G					= 0x0C,	//请求固件升级
+	CMD_REMOTE_CTRL_24G						= 0x0D,	//远程控制
+	CMD_SYSTEM_LOG_24G						= 0x0E,	//系统日志
+	CMD_EVENT_NOTICE_24G					= 0x0F,	//事件通知
+	CMD_ENUM_BIND_ACK       				= 0x10,         //16 设备枚举，给R6发送X6桩号
+	CMD_SCAN_CODE_START_CHARGE     			= 0x20,         //扫码开启充电表示接受到X6的开启充电应答
+};
+
+//1：系统立即重启2：开启枪头3：关闭枪头4：进入/退出 充电服务状态5：设定最大输出功率
+//6：设定充满功率阈值7：设定充满时间阈值8：设定拔枪时间阈值9：拔枪是否停止充电订单
+//10：设置刷卡板工作模式11：清除数据12：设置打印开关
+
+enum {
+    SYSTEM_REBOOT = 1,
+    START_CHARGING = 2,
+    STOP_CHARGING = 3,
+    STOP_SERVER = 4,
+    MAX_OUT_POWER = 5,
+};
+
+#pragma pack(1)
+
+
+typedef struct {
+    uint8_t ee;                                //0.
+    uint8_t len;                               //1.
+    uint8_t SerialNum;//ver;                               //2.
+    uint8_t cmd;                               //3.
+}PROTO_HEAD_BTRF24G_TYPE;
+
+typedef struct {
+    PROTO_HEAD_BTRF24G_TYPE head;
+    uint8_t  data[LEN_OF_BTRF24G_PROTO_DATA];							//msg+checksum
+}PROTO_STR_BTRF24G_TYPE;
+
+// card identify request   刷卡鉴权
+typedef struct {
+	uint8_t  gun_id;                            //0.枪号
+    uint8_t  optType;                           //2： 0：刷卡鉴权，开始充电；1：仅查询余额；2：手机用户反向鉴权
+	uint8_t  card_id[8];                       //3. 用户账号（或者卡号）
+	uint8_t  card_psw[3];                       //4. 用户账号认证密码
+    uint8_t  mode;                              //5.充电模式  0：智能充满 1：按金额 2：按时长 3：按电量
+	uint16_t chargingPara;                      //6.充电参数  智能充满，为0  按金额，分辨率1分  按时长，分辨率1分钟  按电量，分辨率0.01kwh
+}CARD_AUTH_REQ_STR_24G;
+typedef struct {
+    uint8_t  gun_id;                            //0.    枪号
+	uint8_t  result;                            //1.鉴权结果 0:鉴权成功； 1：密码错误； 2： 余额不足或者次数已用完； 3：正在使用，不能同时使用；4：账户无效； 5：其它原因
+	uint8_t  cardType;                          //2. 1月卡
+	uint32_t user_momey;                        //4.账户余额，分辨率 1 分
+	uint8_t  order[ORDER_SECTION_LEN];          //5.订单号  后台生成的充电订单号
+}CARD_AUTH_ACK_STR_24G;
+
+// remote control power-on/off   远程启动充电
+typedef struct {
+	uint8_t  gun_id;                            //枪号
+	uint8_t  mode;                              //充电模式  0：智能充满 1：按金额 2：按时长 3：按电量
+	uint16_t chargingPara;                      //充电参数  智能充满，为0 ; 按金额，分辨率1分; 按时长，分辨率1分钟; 按电量，分辨率0.01kwh
+	uint8_t  order[ORDER_SECTION_LEN];          // 订单号
+}START_CHARGING_REQ_STR_24G;
+
+typedef struct {
+    uint8_t  gunId;         //
+	uint8_t  result;        //
+}START_CHARGING_ACK_STR_24G_TYPE;
+
+typedef struct {
+	uint32_t  ServerTime;                           //服务器时间
+}R6X6_BIND_REQ_STR_24G_TYPE;
+
+typedef struct {
+    uint8_t  deviceID[5];         //
+	uint8_t  baseGunSn;        //
+}R6X6_BIND_ACK_STR_24G_TYPE;
+
+typedef struct {
+    uint8_t  gun_id;                            //0
+	uint8_t  result;                            //0:启动成功  1: 启动失败
+    uint8_t  failReason;                        //1：端口故障 2：没有计费模版 3：已经在充电中 4：设备没有校准 5：参数错误
+}START_CHARGING_ACK_STR_24G;
+
+typedef struct {
+    uint8_t  gun_id;                            //0
+	uint8_t  ReqFwVer;                            //请求固件版本号
+	uint32_t  AddrOffset;                            //固件地址偏移 , 从此处开始接着升级
+}UPGRADE_REQ_STR_BTRF2_4G_TYPE;
+
+typedef struct {
+	uint8_t  result;                            // 0： 可以升级； 1： 不能升级
+}UPGRADE_ACK_STR_BTRF2_4G_TYPE;
+
+//远程结束充电
+typedef struct {
+	uint8_t  gun_id;
+	uint8_t stopReason;
+}STOP_CHARGING_REQ_STR_24G;
+
+typedef struct {
+    uint8_t  gun_id;
+	uint8_t  result;            //0: 成功； 1: 失败
+}STOP_CHARGING_ACK_STR_24G, CARD_AUTH_ACK_RETURN_STR_24G;
+
+typedef struct {
+	uint8_t  gun_id;
+    uint8_t  result;                            //0：接收成功；1：接收失败
+}ACK_X6_RECEIVED_SCAN_CODE_STR;
+
+// report device result power-on/off  充电开始通知
+typedef struct {
+	uint8_t  gun_id;                            //1.
+	uint8_t  user_type;                         //2.
+    uint8_t  optType;                           //3. 1：首次启动充电通知 2：充电中离线恢复重发 3：充电中系统掉电恢复重发
+	uint8_t  user_account[20];                  //4.用户账号
+	uint8_t  order[ORDER_SECTION_LEN];          //5. 订单号
+	uint32_t start_time;                        //6.开始充电时间
+	uint32_t start_power;                       //7.开始充电电量
+	uint32_t money;                             //8.预消费金额  单位：分，本次充电预计消费的金额，如果为全0xff则不限制
+	uint8_t result;
+}START_CHARGING_NOTICE_STR_24G;
+
+// report device result power-on/off  充电开始通知
+typedef struct {
+	uint8_t  gun_id;                            //1.
+	uint8_t  order[ORDER_SECTION_LEN];          // 订单号
+	uint32_t start_time;                        //开始充电时间
+	uint8_t result;                             //启动结果
+}START_CHARGING_NOTICE_STR_24G_TYPE;
+
+typedef struct {
+    uint8_t  gun_id;
+	uint8_t  result;
+	uint8_t  order[ORDER_SECTION_LEN];
+}START_CHARGING_NOTICE_ACK_STR_24G;
+
+
+//充电结束通知
+typedef struct {
+	uint8_t  gun_id;                            //1.
+	uint8_t  user_type;                         //2.
+    uint8_t  stop_reason;                       //3.结束原因
+    uint8_t  stopDetal;                         //4.充电结束原因细节
+    uint32_t errStatus;                         //5.充电过程中曾经出现过的异常状态
+    uint8_t  fwVer;                             //6.固件版本
+	uint8_t  user_account[20];                  //7.用户账号
+	uint8_t  order[ORDER_SECTION_LEN];          //8.订单号
+	uint32_t startTime;                         //9.开始充电时间
+	uint32_t stop_time;                         //10.结束充电时间
+	uint32_t startElec;                         //11.开始充电电量
+	uint32_t stop_power;                        //12.结束充电电量
+	uint32_t charger_cost;                      //13.订单费用  分
+	uint32_t template_id;                       //14.费率id
+	uint16_t chargingPower;                     //15.按功率段计费的功率，单位：w
+}STOP_CHARGING_NOTICE_REQ_STR_24G;
+
+//BTRF2_4G充电结束通知
+typedef struct {
+	uint8_t  gun_id;                            //1.
+    uint8_t  stop_reason;                       //3.结束原因
+    uint8_t  stopDetal;                         //4.充电结束原因细节
+	uint32_t startTime;                         //9.开始充电时间
+	uint16_t chargingTime;                      //9.充电时长
+	uint16_t chargingElec;                         //11.充电电量  0.01kwh
+	uint16_t charger_cost;                      //13.订单费用  分
+	uint16_t chargingPower;                     //15.按功率段计费的功率，单位：w
+	uint8_t  order[ORDER_SECTION_LEN];          //订单号
+}STOP_CHARGING_NOTICE_REQ_STR_BTRF2_4G_TYPE;
+
+//BTRF2_4G订单记录
+typedef struct {
+	uint8_t  gun_id;                            //1.
+    uint8_t  stop_reason;                       //3.结束原因
+    uint8_t  stopDetal;                         //4.充电结束原因细节
+	uint32_t startTime;                         //9.开始充电时间
+	uint16_t chargingTime;                      //9.充电时长
+	uint16_t chargingElec;                         //11.充电电量  0.01kwh
+	uint16_t charger_cost;                      //13.订单费用  分
+	uint16_t chargingPower;                     //15.按功率段计费的功率，单位：w
+	uint8_t  order[ORDER_SECTION_LEN];          //订单号
+}ORDER_REPORT_NOTICE_BTRF2_4G_TYPE;
+
+typedef struct {
+    uint8_t  isStopChargeFlag;
+	uint8_t  isStartChargeFlag;
+}START_OR_STOP_CHARGING_BTRF2_4G_TYPE;
+
+typedef struct {
+    uint8_t  StartChargeFlag[GUN_NUM_MAX];
+}START_CHARGING_STR;
+
+typedef struct {
+	uint8_t  isNeedToStartChargeFlag;
+    uint8_t  gun_id;                            //枪号
+	uint8_t  mode;                              //充电模式  0：智能充满 1：按金额 2：按时长 3：按电量
+	uint32_t chargingPara;                      //充电参数  智能充满，为0 ; 按金额，分辨率1分; 按时长，分辨率1分钟; 按电量，分辨率0.01kwh
+	uint8_t  order[ORDER_SECTION_LEN];          // 订单号
+	uint8_t isStartChargeSN;
+}IS_START_CHARGING_BTRF2_4G_TYPE;
+
+
+//心跳报文最大长度 22*12+7=271
+typedef struct {
+    uint8_t  gunIndex;                          //1.
+    uint8_t  status;                            //3.充电口状态 0 空闲 1 占用未打开或关闭 2 占用已打开，充电中 3 故障
+    uint8_t  faultCode;                         //4.
+    uint8_t  voltage;                           //5. 电压 1V /比特
+    uint16_t current;                           //6.输出电流 分辨率：0.1A/比特
+    uint16_t power;                             //7.输出功率，单位瓦特
+    uint16_t elec;                              //8.
+    uint16_t money;                             //9.
+    uint8_t  resvered[4];				        //10.
+}GUN_HEART_BEAT_STR_24G;
+
+//  遥信及心跳
+typedef struct {
+	uint32_t  ServerTime;                           //服务器时间
+    uint32_t cost_modeID;						    //计费模板ID
+    uint8_t  fwVer;                            //固件版本
+    uint8_t  gwMAC[MAC_LEN];                           //网关地址
+    uint8_t  baseGunSn;				            //起始枪头
+}HEART_BEAT_REQ_STR_BTRF2_4G_TYPE;
+
+
+typedef struct {
+    uint8_t gun_id;                        //充电接口 1 编号
+    uint8_t ChargeStatus;                  //3.充电口状态 0 空闲 1 占用已打开，充电中 2 故障
+    uint8_t errStatus;                   // 1 状态异常 2 计量芯片通信故障
+    uint8_t reserve[2];                 //保留
+}HEART_BEAT_CHARGE_PORT_BTRF2_4G_TYPE;
+
+typedef struct {
+    uint8_t gun_id;                        //充电接口 1 编号
+    uint8_t ChargeStatus;                  //3.充电口状态 0 空闲 1 占用已打开，充电中 2 故障
+    uint8_t errStatus;                   // 1 状态异常 2 计量芯片通信故障
+    uint8_t voltage;           //（可选， 充电口状态 为 充电中 才有） 实时输出电压，单位伏
+	uint8_t current;           //（可选，充电口状态 为 充电中 才有） 实时输出电流 分辨率： 0.1A/比特
+	uint16_t power;             //（可选，充电口状态 为 充电中 才有） 插座的实时输出功率，单位瓦特
+	uint16_t elec;              //（可选，充电口状态 为 充电中 才有） 充电累计电量 单位度 0.01 度/比特
+	uint16_t ChargeCost;        //（可选，充电口状态 为 充电中 才有） 单位 分，
+	uint8_t reserve[2];                 //保留
+}HEART_BEAT_CHARGE_INFO_BTRF2_4G_TYPE;
+
+typedef struct {
+	uint8_t temperature;			//环境温度
+	uint8_t includeVer;			//include文件里面的版本号
+	uint8_t timestamp;             //本次报文所包含的充电接口数目
+#if 1
+    uint8_t Data[13 * GUN_NUM_MAX];
+#else
+	union {
+        HEART_BEAT_CHARGE_PORT_BTRF2_4G_TYPE ChargePort;
+        HEART_BEAT_CHARGE_INFO_BTRF2_4G_TYPE ChargeInfo;
+    }Data[GUN_NUM_MAX];
+#endif
+}HEART_BEAT_ACK_STR_BTRF2_4G_TYPE;
+
+//计费模板
+typedef struct {
+    uint16_t startPower;                        //起始功率 单位w
+    uint16_t endPower;                          //结束功率 单位w
+    uint16_t price;                             //指定时长充电费用，分辨率分
+    uint16_t duration;                          //计费时长,分钟  费率=100,时长=120表示1元充2小时
+}segment_str_24g;
+
+typedef struct {
+    uint8_t  segmentCnt;                        //功率段数目，1~6
+    segment_str_24g segmet[6];
+}multiPower_t_24g;
+
+typedef struct {
+    uint16_t  price;                            //指定时长充电费用，分辨率:分
+    uint16_t  duration;                         //计费时长,分钟  费率=100,时长=120表示1元充2小时
+}unify_t_24g;
+
+// cost template   计费模版下载
+typedef struct {
+    uint8_t  gunId;                             //0 枪号
+	uint32_t template_id;                       //1.计费模板编号
+    uint8_t  mode;                              //2. 1：按功率段计费 2按统一收费
+    uint8_t  cost_mode;                         //2. 1：固定计费 2 实时计费
+	uint16_t chargerStartingGold;				//起步金 add
+	union {
+        multiPower_t_24g powerInfo;
+        unify_t_24g unifyInfo;
+    }Data;
+}COST_TEMPLATE_REQ_STR_24G;
+typedef struct {
+    uint8_t  gunId;         //枪头编号: 0 则表示整桩, 1 开始表示具体枪头
+	uint8_t  result;        //0: 更新成功； 1: 分功率段数错误； 2：计费时长为 0； 3：模式错误
+}COST_TEMPLATE_ACK_STR_24G;
+
+
+//请求下发计费模板
+typedef struct{
+    uint8_t  gun_id;                            //1.
+}REQ_COST_TEMPLATE_STR_24G;
+
+
+// 固件升级请求
+typedef struct{
+	uint32_t     file_size;                 //文件大小     
+    uint16_t     package_num;               //固件分片总数       
+	uint32_t     checkSum;                  //校验码
+    uint8_t      fwverson;                  //固件版本号
+}FW_UPGRADE_NOTI_REQ_STR_24G;
+typedef struct {
+	uint8_t UpgeadeState;                             // 0：可以升级； 1：不能升级
+}FW_UPGRADE_NOTI_ACK_STR_24G;
+
+//固件下发
+typedef struct{
+    uint16_t package_num;               //固件分片序号
+	uint8_t  checkSum;           //固件分片校验码
+	uint8_t  len;               //固件分片长度
+	uint8_t  data[PIECE_PKT_LEN_24G_SEND_TO_X6];         //固件分片静荷
+}DOWN_FW_REQ_STR_24G;
+typedef struct{
+	uint8_t result;             //0： 接收成功； 1：接收失败 2：停止升级
+	uint16_t package_num;       //固件分片序号 X6发送给R6说我要接收哪一个分片包
+	uint8_t gunId;              //枪头号
+}DOWN_FW_ACK_STR_24G;
+
+//请求固件升级
+typedef struct{
+	uint8_t gunid;
+	uint8_t verson;
+}UPGRADE_REQ_STR_24G;
+typedef struct{
+	uint8_t result;
+}UPGRADE_ACK_STR_24G;
+
+
+//远程控制
+typedef struct {
+    uint8_t  optCode;                           //1：系统立即重启 2：开启枪头 3：关闭枪头 4：进入维护状态，关闭充电服务 5：开启充电服务 6：设定最大输出功率
+    uint32_t para;                              //控制参数  如果是设定功率，单位：kw
+}REMO_CTRL_REQ_STR_24G;
+typedef struct {
+    uint8_t  gun_id;        //充电接口编号 , 如果是 0 表示整桩,  1~128,插座接口
+    uint8_t  result;        //0：成功； 1：失败
+}REMO_CTRL_ACK_STR_24G;
+
+
+//日志上传
+typedef struct {
+    uint8_t  gun_id;
+    uint8_t  logType;                           //1：运行日志 2：统计信息
+    uint8_t  data[128];
+}SYS_LOG_STR_24G;
+
+
+/*
+    1：开机
+    2：关机
+    3：掉电
+    4：网络连接断开
+    5：网络连接断开后重连
+    6：开启充电
+    7：结束充电
+    8：充满
+    9：拔插头
+    10：读卡器通信故障
+    11：保险丝熔断
+    12：负载超限
+    13：多次开启充电失败
+    14：环境高温预警
+    15：芯片高温预警
+    16：订单补传
+    17：校准异常
+    18: 器件故障
+    */
+//事件通知
+typedef struct {
+    uint8_t  gun_id;                            //0. 如果是0表示整桩,1~128,插座接口
+    uint8_t  code;                              //1. 事件代码 1：读卡器通信故障； 2：保险丝熔断； 3：负载超限； 4：环境高温预警； 5：器件故障
+    uint8_t  para1;                             //2.
+    uint32_t para2;                             //3.
+    uint8_t  status;                            //4.1：产生  2：恢复
+                                                    //有些事件有产生和恢复的状态，比如：
+                                                    //读卡通信故障， 1：有故障 2：故障恢复
+                                                    //环境高温预警 1：有高温 2：温降恢复
+    uint8_t  level;                             //5.事件等级 1提示  2告警  3严重故障
+}EVENT_NOTICE_STR_BTRF2_4G;
+
+typedef struct {
+	uint8_t gun_id;
+	uint8_t result;
+}EVENT_NOTICE_ACK_STR_24G;
+
+
+#pragma pack()
+
+
+extern uint8_t gFlashCacheBuff[SPI_FLASH_PAGE_SIZE];
+
+uint8_t SendEventNotice_BTRF2_4G(uint8_t gunId,uint8_t event,uint8_t para1,uint32_t para2,uint8_t status,uint8_t  level);
+int SendReqCostTemplate_BTRF2_4G(uint8_t gunId);
+int SendStopChargingNotice_BTRF2_4G(uint8_t gun_id);
+int SendHeartBat_BTRF2_4G(void);
+int MakeGunHearBeatInfo(GUN_HEART_BEAT_STR_24G *pInfo, uint8_t gun_id);
+int SendCardAuthReq_24G(int flag);
+/*****************************************************************************
+** Function name:       SendStartChargingNoticeBTRF_24G
+** Descriptions:        //RF2_4G开启充电通知
+** input parameters:    gun_id: 枪号
+                        startTime: 充电开始时间
+                        result: 充电结果
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern int SendStartChargingNoticeBTRF_24G(int gun_id, uint32_t startTime, uint8_t result,uint8_t SerialNum);
+/*****************************************************************************
+** Function name:       X6ToR6HeartBatACK_BTRF2_4G
+** Descriptions:        //心跳响应
+** input parameters:    pMsg: 内层协议数据头指针
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void X6ToR6HeartBatACK_BTRF2_4G(void);
+/*****************************************************************************
+** Function name:       FWUpgradeREQ_BTRF2_4G
+** Descriptions:        //固件升级请求响应
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void FWUpgradeREQ_BTRF2_4G(uint8_t gun_id);
+/*****************************************************************************
+** Function name:       SpeechSelectGun
+** Descriptions:        语音播报让用户选择枪口
+** input parameters:    
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void SpeechSelectGun(uint8_t  gun_id);
+/*****************************************************************************
+** Function name:       SaveStopChargingNotice_BTRF2_4G
+** Descriptions:        //RF2_4G保存停止充电通知到flash
+** input parameters:    None
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern int SaveStopChargingNotice_BTRF2_4G(uint8_t gun_id);
+
+/*****************************************************************************
+** Function name:       StartChargingAckProc_24G
+** Descriptions:        //充电请求应答
+** input parameters:    result: 
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void StartChargingAckProc_24G(uint8_t gun_id, uint8_t result, uint8_t SendFlag);
+extern void _24gRecvProc(uint8_t *pbuff, uint16_t len);
+/*****************************************************************************
+** Function name:       isStartChargingBTRF2_4G
+** Descriptions:        //查询是否需要开启充电和是否开启充电
+** input parameters:    pMsg: 内层数据头指针
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void isStartChargingBTRF2_4G(void);
+extern void SendStartChargingNotice(void);
+
+/*****************************************************************************
+** Function name:       isSendStartChargingBTRF2_4G
+** Descriptions:        //是否需要发送开启充电通知
+** input parameters:    None
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void isSendStartChargingBTRF2_4G(void);
+/*****************************************************************************
+** Function name:       SendOrderReportNotice_BTRF2_4G
+** Descriptions:        //发送订单区域保存的订单
+** input parameters:    None
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern int SendOrderReportNotice_BTRF2_4G(ORDER_REPORT_NOTICE_BTRF2_4G_TYPE * pSaveNoticeMsg, uint32_t SerialNum);
+
+/*****************************************************************************
+** Function name:       MuxSempTake
+** Descriptions:        
+** input parameters:    
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern int MuxSempTake(uint8_t *pSemp);
+
+/*****************************************************************************
+** Function name:       MuxSempGive
+** Descriptions:        
+** input parameters:    
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void MuxSempGive(uint8_t *pSemp);
+
+/*****************************************************************************
+** Function name:       CloseUpgradeReqestFlag
+** Descriptions:        //关闭发送升级请求
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void CloseUpgradeReqestFlag(void);
+
+/*****************************************************************************
+** Function name:       OpenUpgradeReqestFlag
+** Descriptions:        //open可以发送升级请求标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void OpenUpgradeReqestFlag(void);
+
+/*****************************************************************************
+** Function name:       GetUpgradeReqestFlag
+** Descriptions:        //获取发送升级请求标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern int GetUpgradeReqestFlag(void);
+
+/*****************************************************************************
+** Function name:       CloseBlueToothUpgradeFlag
+** Descriptions:        //关闭蓝牙升级标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void CloseBlueToothUpgradeFlag(void);
+
+/*****************************************************************************
+** Function name:       OpenBlueToothUpgradeFlag
+** Descriptions:        //open蓝牙升级标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void OpenBlueToothUpgradeFlag(void);
+
+/*****************************************************************************
+** Function name:       GetBlueToothUpgradeFlag
+** Descriptions:        //获取蓝牙升级标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern int GetBlueToothUpgradeFlag(void);
+
+/*****************************************************************************
+** Function name:       CloseUARTUpgradeFlag
+** Descriptions:        //关闭uart升级标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void CloseUARTUpgradeFlag(void);
+
+/*****************************************************************************
+** Function name:       OpenUARTUpgradeFlag
+** Descriptions:        //open串口升级标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern void OpenUARTUpgradeFlag(void);
+
+/*****************************************************************************
+** Function name:       GetUARTUpgradeFlag
+** Descriptions:        //获取串口升级标志
+** input parameters:    pMsg
+** output parameters:   None
+** Returned value:		None
+** Author:              quqian
+*****************************************************************************/
+extern int GetUARTUpgradeFlag(void);
+
+/*****************************************************************************
+** Function name:       FWDownLoadAckBTRF2_4G
+** Descriptions:        //固件下发应答
+** input parameters:    pMsg: 内层协议数据头指针
+                        result:   0：接收成功；1：接收失败；2：停止升级
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void FWDownLoadAckBTRF2_4G(PROTO_STR_BTRF24G_TYPE  *pMsg, uint8_t result);
+
+/*****************************************************************************
+** Function name:       CheckUpgradeWaitTimer
+** Descriptions:        //升级过程中，大于50s没有接收到数据说明 R6 已经断电或离线了
+** input parameters:    None
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void CheckUpgradeWaitTimer(void);
+
+/*****************************************************************************
+** Function name:       ClearUpgradeWaitTimer
+** Descriptions:        //重新复位等待时间
+** input parameters:    None
+** output parameters:   None
+** Returned value:	  None
+** Author:              quqian
+*****************************************************************************/
+extern void ClearUpgradeWaitTimer(void);
+extern int GetPktSum(uint8_t *pData, uint16_t len);
+
+#endif
+
+
+
